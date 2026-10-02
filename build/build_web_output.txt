@@ -1,0 +1,31 @@
+Web build started 
+=== Compiling Java sources === 
+Compile OK 
+=== Copying web assets === 
+        1 file(s) copied.
+        1 file(s) copied.
+        1 file(s) copied.
+Web assets copied 
+=== Creating fat JAR === 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jackson-annotations-2.13.4.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jackson-core-2.13.4.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jackson-databind-2.13.4.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\javalin-4.6.8.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\javax.servlet-api.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jetty-http.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jetty-io.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jetty-security.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jetty-server.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jetty-servlet.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jetty-util.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jetty-webapp.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\jetty-xml.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\kotlin-stdlib-1.7.10.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\slf4j-api-1.7.36.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\slf4j-simple-1.7.36.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\websocket-api.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\websocket-common.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\websocket-server.jar 
+Extracting c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib\websocket-servlet.jar 
+JAR OK: c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\dist\NgumbaWeb.jar 
+=== WEB BUILD SUCCESS === 

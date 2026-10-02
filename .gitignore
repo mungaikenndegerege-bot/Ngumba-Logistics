@@ -1,0 +1,17 @@
+# Build output
+build/web-classes/
+build/*.log
+build/*.bat
+dist/NgumbaWeb.jar
+dist/Ngumba_Logistics.jar
+
+# Serialized data file (contains fleet data - keep out of source control)
+*.dat
+*.dat.corrupt_*
+
+# NetBeans private config
+nbproject/private/
+
+# OS files
+.DS_Store
+Thumbs.db

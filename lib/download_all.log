@@ -1,0 +1,43 @@
+Downloading all Javalin 4.6.8 runtime deps... 
+jetty-server done 
+jetty-servlet done 
+jetty-webapp done 
+jetty-util done 
+jetty-http done 
+jetty-io done 
+jetty-security done 
+jetty-xml done 
+servlet-api done 
+websocket-server done 
+websocket-servlet done 
+websocket-api done 
+websocket-common done 
+ 
+=== All downloads complete === 
+ Volume in drive C has no label.
+ Volume Serial Number is 14B5-5C18
+
+ Directory of c:\Users\user\Documents\NetBeansProjects\Ngumba Logistics\lib
+
+02/10/2026  10:36            75,717 jackson-annotations-2.13.4.jar
+02/10/2026  10:35           374,895 jackson-core-2.13.4.jar
+02/10/2026  10:36         1,536,894 jackson-databind-2.13.4.jar
+02/10/2026  10:35           583,616 javalin-4.6.8.jar
+02/10/2026  11:04            95,806 javax.servlet-api.jar
+02/10/2026  11:03           234,754 jetty-http.jar
+02/10/2026  11:03           183,018 jetty-io.jar
+02/10/2026  11:03           118,511 jetty-security.jar
+02/10/2026  11:03           732,200 jetty-server.jar
+02/10/2026  11:03           146,081 jetty-servlet.jar
+02/10/2026  11:03           582,975 jetty-util.jar
+02/10/2026  11:03           140,320 jetty-webapp.jar
+02/10/2026  11:04            68,301 jetty-xml.jar
+02/10/2026  10:53         1,524,620 kotlin-stdlib-1.7.10.jar
+02/10/2026  10:36            41,125 slf4j-api-1.7.36.jar
+02/10/2026  10:36            15,333 slf4j-simple-1.7.36.jar
+02/10/2026  11:04            52,173 websocket-api.jar
+02/10/2026  11:04           214,632 websocket-common.jar
+02/10/2026  11:04            45,510 websocket-server.jar
+02/10/2026  11:04            30,315 websocket-servlet.jar
+              20 File(s)      6,796,796 bytes
+               0 Dir(s)  83,805,597,696 bytes free

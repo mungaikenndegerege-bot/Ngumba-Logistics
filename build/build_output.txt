@@ -1,0 +1,6 @@
+Build started 
+=== Compiling === 
+Compile OK 
+=== Creating JAR === 
+JAR OK 
+BUILD SUCCESS 
