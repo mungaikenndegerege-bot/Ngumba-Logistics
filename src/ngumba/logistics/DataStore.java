@@ -85,23 +85,30 @@ public class DataStore {
     public static AppData get() { return data; }
 
     /**
-     * Resolve the data file path to the same directory as the running JAR.
-     * This ensures save/load always use the same file regardless of what the
-     * working directory happens to be when the JVM is launched.
+     * Resolve the data file path using this priority:
+     *  1. DATA_DIR environment variable (set on Railway / any cloud host)
+     *  2. Same directory as the running JAR (local development)
+     *  3. Working directory (last-resort fallback)
      */
     static File dataFile() {
+        // 1. Cloud: honour DATA_DIR env var (Railway persistent volume path)
+        String dataDir = System.getenv("DATA_DIR");
+        if (dataDir != null && !dataDir.trim().isEmpty()) {
+            File dir = new File(dataDir.trim());
+            dir.mkdirs(); // ensure the directory exists
+            return new File(dir, FILENAME);
+        }
+        // 2. Local: resolve beside the running JAR
         try {
-            // CodeSource gives us the location of the .jar (or .class) file
             java.security.CodeSource cs =
                 DataStore.class.getProtectionDomain().getCodeSource();
             if (cs != null) {
                 File jar = new File(cs.getLocation().toURI());
-                // If it's the JAR itself, go up one level to the dist/ parent, then save beside it
                 File dir = jar.isFile() ? jar.getParentFile() : jar;
                 return new File(dir, FILENAME);
             }
         } catch (Exception ignored) { }
-        // Fallback: working directory
+        // 3. Fallback
         return new File(FILENAME);
     }
 

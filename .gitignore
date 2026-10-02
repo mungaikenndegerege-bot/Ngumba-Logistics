@@ -1,17 +1,24 @@
-# Build output
+# ── Build output ────────────────────────────────────────────────────────────
 build/web-classes/
 build/*.log
-build/*.bat
+build/do_push*.bat
+build/check_token.bat
+build/install_git.bat
 dist/NgumbaWeb.jar
 dist/Ngumba_Logistics.jar
 
-# Serialized data file (contains fleet data - keep out of source control)
+# ── Data files (fleet data — keep out of source control) ────────────────────
 *.dat
 *.dat.corrupt_*
 
-# NetBeans private config
+# ── NetBeans private config ──────────────────────────────────────────────────
 nbproject/private/
 
-# OS files
+# ── OS / IDE ─────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+*.iml
+.idea/
+
+# NOTE: lib/*.jar is intentionally committed — the Dockerfile needs them
+#       to build without requiring Maven/Gradle on Railway.

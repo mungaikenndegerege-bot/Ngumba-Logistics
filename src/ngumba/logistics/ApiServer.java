@@ -35,11 +35,20 @@ public class ApiServer {
     public static void main(String[] args) {
         DataStore.load();
 
+        // Railway (and most cloud platforms) inject a PORT env var.
+        // Fall back to 8080 for cloud, 7070 for local if neither is set.
+        int port = 8080;
+        String envPort = System.getenv("PORT");
+        if (envPort != null && !envPort.isEmpty()) {
+            try { port = Integer.parseInt(envPort.trim()); } catch (NumberFormatException ignored) {}
+        }
+        final int serverPort = port;
+
         Javalin app = Javalin.create(config -> {
             config.addStaticFiles("/web", Location.CLASSPATH);
             config.enableCorsForAllOrigins();
             config.jsonMapper(new JavalinJackson(JSON));
-        }).start(7070);
+        }).start(serverPort);
 
         // ---- TRUCKS ----
         app.get("/api/trucks", ctx -> {
@@ -399,7 +408,7 @@ public class ApiServer {
 
         System.out.println("===========================================");
         System.out.println("  Ngumba Logistics Web App running on:    ");
-        System.out.println("  http://localhost:7070                    ");
+        System.out.println("  http://localhost:" + serverPort + "         ");
         System.out.println("===========================================");
     }
 
