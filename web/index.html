@@ -120,7 +120,7 @@
       <div class="table-wrap">
         <table id="staff-table">
           <thead><tr>
-            <th>Name</th><th>Role</th><th>Monthly Salary (KSh)</th><th>Actions</th>
+            <th>Name</th><th>Role</th><th>ID No.</th><th>Licence No.</th><th></th>Monthly Salary (KSh)</th><th>Actions</th>
           </tr></thead>
           <tbody id="staff-tbody"></tbody>
         </table>
@@ -244,6 +244,8 @@
       <form id="staff-form" onsubmit="submitStaff(event)">
         <label>Name <input type="text" id="s-name" required /></label>
         <label>Role <input type="text" id="s-role" placeholder="Driver / Turn boy / Mechanic / Office" /></label>
+        <label>National ID Number <input type="text" id="s-idnumber" placeholder="e.g. 12345678" /></label>
+        <label>Driving Licence Number <input type="text" id="s-license" placeholder="e.g. DL/A/123456" /></label>
         <label>Monthly Salary (KSh) <input type="number" id="s-salary" min="0" step="1" required /></label>
         <div class="modal-actions">
           <button type="submit" class="btn-primary">Save</button>

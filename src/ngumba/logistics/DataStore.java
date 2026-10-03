@@ -50,9 +50,11 @@ public class DataStore {
     }
 
     public static class Staff implements Serializable {
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 2L;  // bumped — new fields added
         public int id;
         public String name, role;
+        public String idNumber;       // National ID number
+        public String licenseNumber;  // Driving licence number
         public double monthlySalary;
     }
 
@@ -65,7 +67,7 @@ public class DataStore {
     }
 
     public static class AppData implements Serializable {
-        private static final long serialVersionUID = 2L;
+        private static final long serialVersionUID = 3L;  // bumped — Staff fields added
         public List<Truck> trucks  = new ArrayList<Truck>();
         public List<Trip>  trips   = new ArrayList<Trip>();
         public List<Part>  parts   = new ArrayList<Part>();
@@ -153,7 +155,11 @@ public class DataStore {
     /** Assign IDs to any records that were saved without them (migration). */
     private static void backfillIds() {
         for (Part p : data.parts)  if (p.id == 0) p.id = data.nextPartId++;
-        for (Staff s : data.staff) if (s.id == 0) s.id = data.nextStaffId++;
+        for (Staff s : data.staff) {
+            if (s.id == 0)           s.id           = data.nextStaffId++;
+            if (s.idNumber == null)  s.idNumber     = "";
+            if (s.licenseNumber == null) s.licenseNumber = "";
+        }
         for (Misc m : data.misc)   if (m.id == 0) m.id = data.nextMiscId++;
     }
 

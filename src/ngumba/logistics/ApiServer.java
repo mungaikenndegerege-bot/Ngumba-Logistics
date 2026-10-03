@@ -197,6 +197,8 @@ public class ApiServer {
                 n.put("id", s.id);
                 n.put("name", s.name);
                 n.put("role", s.role);
+                n.put("idNumber", s.idNumber == null ? "" : s.idNumber);
+                n.put("licenseNumber", s.licenseNumber == null ? "" : s.licenseNumber);
                 n.put("monthlySalary", s.monthlySalary);
                 arr.add(n);
             }
@@ -209,6 +211,8 @@ public class ApiServer {
             s.id = DataStore.get().nextStaffId++;
             s.name = body.get("name").asText().trim();
             s.role = body.get("role").asText("").trim();
+            s.idNumber      = body.has("idNumber")      ? body.get("idNumber").asText("").trim()      : "";
+            s.licenseNumber = body.has("licenseNumber") ? body.get("licenseNumber").asText("").trim() : "";
             s.monthlySalary = body.get("monthlySalary").asDouble(0);
             DataStore.get().staff.add(s);
             DataStore.save();
@@ -376,7 +380,10 @@ public class ApiServer {
             for (Staff s : d.staff) {
                 ObjectNode row = JSON.createObjectNode();
                 row.put("id", s.id); row.put("name", s.name);
-                row.put("role", s.role); row.put("monthlySalary", s.monthlySalary);
+                row.put("role", s.role);
+                row.put("idNumber", s.idNumber == null ? "" : s.idNumber);
+                row.put("licenseNumber", s.licenseNumber == null ? "" : s.licenseNumber);
+                row.put("monthlySalary", s.monthlySalary);
                 staffRows.add(row);
             }
 

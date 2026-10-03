@@ -363,13 +363,15 @@ async function loadStaff() {
     const staff = await api('/staff');
     const tbody = document.getElementById('staff-tbody');
     if (!staff.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No staff added yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No staff added yet.</td></tr>';
       document.getElementById('staff-total').textContent = '';
       return;
     }
     tbody.innerHTML = staff.map(s => `<tr>
       <td>${esc(s.name)}</td>
       <td>${esc(s.role)}</td>
+      <td>${esc(s.idNumber) || '<span class="muted">—</span>'}</td>
+      <td>${esc(s.licenseNumber) || '<span class="muted">—</span>'}</td>
       <td class="money">${fmt(s.monthlySalary)}</td>
       <td><button class="btn-icon" title="Delete" onclick="confirmDelete('${esc(s.name)} from staff?', deleteStaff, ${s.id})">🗑️</button></td>
     </tr>`).join('');
@@ -385,6 +387,8 @@ async function submitStaff(e) {
   const body = {
     name:          document.getElementById('s-name').value,
     role:          document.getElementById('s-role').value,
+    idNumber:      document.getElementById('s-idnumber').value.trim(),
+    licenseNumber: document.getElementById('s-license').value.trim(),
     monthlySalary: parseFloat(document.getElementById('s-salary').value) || 0
   };
   try {
@@ -578,10 +582,12 @@ async function loadReport() {
         ${r.staff.length === 0 ? '<p class="muted">No staff.</p>' : `
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Role</th><th class="money">Monthly Salary</th></tr></thead>
+            <thead><tr><th>Name</th><th>Role</th><th>ID No.</th><th>Licence No.</th><th class="money">Monthly Salary</th></tr></thead>
             <tbody>
               ${r.staff.map(s => `<tr>
                 <td>${esc(s.name)}</td><td>${esc(s.role)}</td>
+                <td>${esc(s.idNumber) || '—'}</td>
+                <td>${esc(s.licenseNumber) || '—'}</td>
                 <td class="money">${fmt(s.monthlySalary)}</td>
               </tr>`).join('')}
             </tbody>
@@ -615,8 +621,8 @@ function exportReportCsv() {
   csv += '\nMISCELLANEOUS\nDate,Category,Description,Truck,Amount\n';
   r.misc.forEach(x => { csv += `${x.date},${q(x.category)},${q(x.description)},${q(x.plate)},${x.amount}\n`; });
 
-  csv += '\nPAYROLL\nName,Role,Monthly Salary\n';
-  r.staff.forEach(s => { csv += `${q(s.name)},${q(s.role)},${s.monthlySalary}\n`; });
+  csv += '\nPAYROLL\nName,Role,ID Number,Licence Number,Monthly Salary\n';
+  r.staff.forEach(s => { csv += `${q(s.name)},${q(s.role)},${q(s.idNumber)},${q(s.licenseNumber)},${s.monthlySalary}\n`; });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
