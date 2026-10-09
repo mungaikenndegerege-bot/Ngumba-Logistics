@@ -118,7 +118,10 @@ public class ApiServer {
                 n.put("income", t.income);
                 n.put("fuel", t.fuel);
                 n.put("borderAndTolls", t.borderAndTolls);
+                n.put("broker", t.broker);
                 n.put("other", t.other);
+                n.put("otherDesc", t.otherDesc == null ? "" : t.otherDesc);
+                n.put("mileage", t.mileage);
                 n.put("cost", t.cost());
                 n.put("profit", t.profit());
                 arr.add(n);
@@ -137,7 +140,10 @@ public class ApiServer {
             t.income = body.get("income").asDouble(0);
             t.fuel = body.get("fuel").asDouble(0);
             t.borderAndTolls = body.get("borderAndTolls").asDouble(0);
+            t.broker = body.has("broker") ? body.get("broker").asDouble(0) : 0;
             t.other = body.get("other").asDouble(0);
+            t.otherDesc = body.has("otherDesc") ? body.get("otherDesc").asText("").trim() : "";
+            t.mileage = body.has("mileage") ? body.get("mileage").asInt(0) : 0;
             DataStore.get().trips.add(t);
             DataStore.save();
             ctx.status(201).result("" + t.id);
@@ -271,12 +277,21 @@ public class ApiServer {
             AppData d = DataStore.get();
             LocalDate today = LocalDate.now();
 
-            // This-month totals
-            double income = 0, tripCost = 0, parts = 0, misc = 0, payroll = 0;
+            // This-month totals — payroll NOT deducted unless a PayrollRun exists for this month
+            double income = 0, tripCost = 0, parts = 0, misc = 0;
             for (Trip t : d.trips) if (inMonth(t.date, now)) { income += t.income; tripCost += t.cost(); }
             for (Part p : d.parts) if (inMonth(p.date, now)) parts += p.cost;
             for (Misc x : d.misc)  if (inMonth(x.date, now)) misc += x.amount;
-            for (Staff s : d.staff) payroll += s.monthlySalary;
+
+            // Payroll only deducted if a run was authorised this month
+            String nowKey = now.toString(); // e.g. "2026-10"
+            double authorisedPayroll = 0;
+            for (PayrollRun pr : d.payrollRuns)
+                if (nowKey.equals(pr.month)) authorisedPayroll += pr.totalPaid;
+
+            // Total banked this month
+            double banked = 0;
+            for (BankDeposit dep : d.bankDeposits) if (inMonth(dep.date, now)) banked += dep.amount;
 
             // Alerts
             ArrayNode alerts = JSON.createArrayNode();
@@ -285,35 +300,115 @@ public class ApiServer {
                 long ins = ChronoUnit.DAYS.between(today, t.insuranceExpiry);
                 if (svc <= 30) {
                     ObjectNode a = JSON.createObjectNode();
-                    a.put("plate", t.plate);
-                    a.put("type", "service");
-                    a.put("days", svc);
-                    a.put("date", t.nextService.toString());
+                    a.put("plate", t.plate); a.put("type", "service");
+                    a.put("days", svc); a.put("date", t.nextService.toString());
                     alerts.add(a);
                 }
                 if (ins <= 30) {
                     ObjectNode a = JSON.createObjectNode();
-                    a.put("plate", t.plate);
-                    a.put("type", "insurance");
-                    a.put("days", ins);
-                    a.put("date", t.insuranceExpiry.toString());
+                    a.put("plate", t.plate); a.put("type", "insurance");
+                    a.put("days", ins); a.put("date", t.insuranceExpiry.toString());
                     alerts.add(a);
                 }
             }
 
+            // Pending payroll (salaries not yet authorised this month)
+            double pendingPayroll = 0;
+            for (Staff s : d.staff) pendingPayroll += s.monthlySalary;
+            pendingPayroll = Math.max(0, pendingPayroll - authorisedPayroll);
+
             ObjectNode result = JSON.createObjectNode();
             result.put("truckCount", d.trucks.size());
-            result.put("staffCount", d.staff.size());
             result.put("tripCount", d.trips.size());
             result.put("monthIncome", income);
             result.put("monthTripCost", tripCost);
             result.put("monthParts", parts);
             result.put("monthMisc", misc);
-            result.put("monthPayroll", payroll);
-            result.put("monthNet", income - tripCost - parts - misc - payroll);
+            result.put("monthAuthorisedPayroll", authorisedPayroll);
+            result.put("monthPendingPayroll", pendingPayroll);
+            result.put("monthNet", income - tripCost - parts - misc - authorisedPayroll);
+            result.put("monthBanked", banked);
             result.put("currentMonth", now.toString());
             result.set("alerts", alerts);
             ctx.json(result.toString());
+        });
+
+        // ---- BANK DEPOSITS ----
+        app.get("/api/bank", ctx -> {
+            ArrayNode arr = JSON.createArrayNode();
+            for (BankDeposit dep : DataStore.get().bankDeposits) {
+                ObjectNode n = JSON.createObjectNode();
+                n.put("id", dep.id);
+                n.put("date", dep.date.toString());
+                n.put("bank", dep.bank == null ? "" : dep.bank);
+                n.put("reference", dep.reference == null ? "" : dep.reference);
+                n.put("amount", dep.amount);
+                arr.add(n);
+            }
+            ctx.json(arr.toString());
+        });
+
+        app.post("/api/bank", ctx -> {
+            ObjectNode body = ctx.bodyAsClass(ObjectNode.class);
+            BankDeposit dep = new BankDeposit();
+            dep.id = DataStore.get().nextDepositId++;
+            dep.date = LocalDate.parse(body.get("date").asText());
+            dep.bank = body.has("bank") ? body.get("bank").asText("").trim() : "";
+            dep.reference = body.has("reference") ? body.get("reference").asText("").trim() : "";
+            dep.amount = body.get("amount").asDouble(0);
+            DataStore.get().bankDeposits.add(dep);
+            DataStore.save();
+            ctx.status(201).result("" + dep.id);
+        });
+
+        app.delete("/api/bank/{id}", ctx -> {
+            int id = Integer.parseInt(ctx.pathParam("id"));
+            boolean removed = DataStore.get().bankDeposits.removeIf(d -> d.id == id);
+            if (!removed) { ctx.status(404).result("Not found"); return; }
+            DataStore.save();
+            ctx.result("Deleted");
+        });
+
+        // ---- PAYROLL RUNS ----
+        app.get("/api/payroll/runs", ctx -> {
+            ArrayNode arr = JSON.createArrayNode();
+            for (PayrollRun pr : DataStore.get().payrollRuns) {
+                ObjectNode n = JSON.createObjectNode();
+                n.put("id", pr.id);
+                n.put("date", pr.date.toString());
+                n.put("month", pr.month);
+                n.put("totalPaid", pr.totalPaid);
+                n.put("authorisedBy", pr.authorisedBy == null ? "" : pr.authorisedBy);
+                arr.add(n);
+            }
+            ctx.json(arr.toString());
+        });
+
+        // POST /api/payroll/run — authorise and record payroll for the given month
+        app.post("/api/payroll/run", ctx -> {
+            ObjectNode body = ctx.bodyAsClass(ObjectNode.class);
+            AppData d = DataStore.get();
+            String month = body.has("month") ? body.get("month").asText().trim() : YearMonth.now().toString();
+            String authorisedBy = body.has("authorisedBy") ? body.get("authorisedBy").asText("").trim() : "";
+            double total = 0;
+            for (Staff s : d.staff) total += s.monthlySalary;
+            PayrollRun pr = new PayrollRun();
+            pr.id = d.nextPayrollRunId++;
+            pr.date = LocalDate.now();
+            pr.month = month;
+            pr.totalPaid = total;
+            pr.authorisedBy = authorisedBy;
+            d.payrollRuns.add(pr);
+            DataStore.save();
+            ctx.status(201).result("" + pr.id);
+        });
+
+        app.delete("/api/payroll/runs/{id}", ctx -> {
+            int id = Integer.parseInt(ctx.pathParam("id"));
+            boolean removed = DataStore.get().payrollRuns.removeIf(r -> r.id == id);
+            if (!removed) { ctx.status(404).result("Not found"); return; }
+            DataStore.save();
+            ctx.result("Deleted");
         });
 
         // ---- MONTHLY REPORT ----
@@ -329,7 +424,13 @@ public class ApiServer {
             for (Trip t : d.trips) if (inMonth(t.date, ym)) { income += t.income; tripCost += t.cost(); }
             for (Part p : d.parts) if (inMonth(p.date, ym)) partsTotal += p.cost;
             for (Misc x : d.misc)  if (inMonth(x.date, ym)) miscTotal += x.amount;
-            for (Staff s : d.staff) payroll += s.monthlySalary;
+            // Only count payroll that was actually authorised this month
+            String ymKey = ym.toString();
+            for (PayrollRun pr : d.payrollRuns) if (ymKey.equals(pr.month)) payroll += pr.totalPaid;
+
+            // Bank deposits this month
+            double banked = 0;
+            for (BankDeposit dep : d.bankDeposits) if (inMonth(dep.date, ym)) banked += dep.amount;
 
             // Per-truck breakdown
             ArrayNode truckRows = JSON.createArrayNode();
@@ -351,6 +452,10 @@ public class ApiServer {
                 row.put("id", t.id); row.put("date", t.date.toString());
                 row.put("plate", t.plate); row.put("route", t.route);
                 row.put("cargo", t.cargo); row.put("income", t.income);
+                row.put("fuel", t.fuel); row.put("borderAndTolls", t.borderAndTolls);
+                row.put("broker", t.broker); row.put("other", t.other);
+                row.put("otherDesc", t.otherDesc == null ? "" : t.otherDesc);
+                row.put("mileage", t.mileage);
                 row.put("cost", t.cost()); row.put("profit", t.profit());
                 tripRows.add(row);
             }
@@ -392,6 +497,7 @@ public class ApiServer {
             result.put("income", income); result.put("tripCost", tripCost);
             result.put("parts", partsTotal); result.put("misc", miscTotal);
             result.put("payroll", payroll);
+            result.put("banked", banked);
             result.put("net", income - tripCost - partsTotal - miscTotal - payroll);
             result.set("trucks", truckRows);
             result.set("trips", tripRows);

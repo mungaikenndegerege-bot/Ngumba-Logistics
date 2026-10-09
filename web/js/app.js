@@ -52,6 +52,7 @@ function switchTab(name) {
   if (name === 'parts')     loadParts();
   if (name === 'staff')     loadStaff();
   if (name === 'misc')      loadMisc();
+  if (name === 'bank')      loadBank();
   if (name === 'report')    loadReport();
 }
 
@@ -90,11 +91,11 @@ async function loadDashboard() {
   try {
     const d = await api('/dashboard');
     document.getElementById('d-trucks').textContent = d.truckCount;
-    document.getElementById('d-staff').textContent  = d.staffCount;
     document.getElementById('d-trips').textContent  = d.tripCount;
     document.getElementById('d-income').textContent = ksh(d.monthIncome);
-    const totalCosts = d.monthTripCost + d.monthParts + d.monthMisc + d.monthPayroll;
+    const totalCosts = d.monthTripCost + d.monthParts + d.monthMisc + d.monthAuthorisedPayroll;
     document.getElementById('d-costs').textContent  = ksh(totalCosts);
+    document.getElementById('d-banked').textContent = ksh(d.monthBanked);
     document.getElementById('d-net').textContent    = ksh(d.monthNet);
 
     const netCard = document.getElementById('d-net-card');
@@ -105,10 +106,25 @@ async function loadDashboard() {
     document.getElementById('d-b-tripcost').textContent = ksh(d.monthTripCost);
     document.getElementById('d-b-parts').textContent    = ksh(d.monthParts);
     document.getElementById('d-b-misc').textContent     = ksh(d.monthMisc);
-    document.getElementById('d-b-payroll').textContent  = ksh(d.monthPayroll);
+    document.getElementById('d-b-payroll').textContent  = ksh(d.monthAuthorisedPayroll);
+    document.getElementById('d-b-pending').textContent  = ksh(d.monthPendingPayroll);
     const netEl = document.getElementById('d-b-net');
     netEl.textContent = ksh(d.monthNet);
     netEl.className = 'money ' + (d.monthNet >= 0 ? 'pos' : 'neg');
+
+    // Pending payroll notice
+    const notice = document.getElementById('payroll-notice');
+    const noticeText = document.getElementById('payroll-notice-text');
+    if (d.monthPendingPayroll > 0) {
+      noticeText.textContent = `Payroll of ${ksh(d.monthPendingPayroll)} is pending for ${d.currentMonth} — not yet deducted from net.`;
+      notice.style.display = 'flex';
+      // Pre-fill payroll modal
+      document.getElementById('pr-month').value = d.currentMonth;
+      document.getElementById('payroll-modal-desc').textContent =
+        `This will authorise and deduct ${ksh(d.monthPendingPayroll)} in staff salaries for ${d.currentMonth}.`;
+    } else {
+      notice.style.display = 'none';
+    }
 
     // Alerts
     const alertsDiv = document.getElementById('alerts-list');
@@ -253,7 +269,7 @@ async function loadTrips() {
     const trips = await api('/trips');
     const tbody = document.getElementById('trips-tbody');
     if (!trips.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No trips recorded yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" class="empty-state">No trips recorded yet.</td></tr>';
       return;
     }
     tbody.innerHTML = trips.map(t => `<tr>
@@ -262,8 +278,12 @@ async function loadTrips() {
       <td>${esc(t.plate)}</td>
       <td>${esc(t.route)}</td>
       <td>${esc(t.cargo)}</td>
+      <td>${t.mileage ? t.mileage + ' km' : '—'}</td>
       <td class="money">${fmt(t.income)}</td>
-      <td class="money">${fmt(t.cost)}</td>
+      <td class="money">${fmt(t.fuel)}</td>
+      <td class="money">${fmt(t.borderAndTolls)}</td>
+      <td class="money">${fmt(t.broker)}</td>
+      <td class="money" title="${esc(t.otherDesc || '')}">${fmt(t.other)}${t.otherDesc ? ' <small>(' + esc(t.otherDesc) + ')</small>' : ''}</td>
       <td class="money ${t.profit >= 0 ? 'pos' : 'neg'}">${fmt(t.profit)}</td>
       <td><button class="btn-icon" title="Delete" onclick="confirmDelete('Trip #${t.id}?', deleteTrip, ${t.id})">🗑️</button></td>
     </tr>`).join('');
@@ -279,10 +299,13 @@ async function submitTrip(e) {
     route:         document.getElementById('tr-route').value,
     cargo:         document.getElementById('tr-cargo').value,
     date:          document.getElementById('tr-date').value,
+    mileage:       parseInt(document.getElementById('tr-mileage').value) || 0,
     income:        parseFloat(document.getElementById('tr-income').value) || 0,
     fuel:          parseFloat(document.getElementById('tr-fuel').value) || 0,
     borderAndTolls:parseFloat(document.getElementById('tr-border').value) || 0,
-    other:         parseFloat(document.getElementById('tr-other').value) || 0
+    broker:        parseFloat(document.getElementById('tr-broker').value) || 0,
+    other:         parseFloat(document.getElementById('tr-other').value) || 0,
+    otherDesc:     document.getElementById('tr-otherdesc').value.trim()
   };
   try {
     await api('/trips', { method: 'POST', body: JSON.stringify(body) });
@@ -502,7 +525,8 @@ async function loadReport() {
           <div class="summary-item"><div class="label">Trip Expenses</div><div class="value">${ksh(r.tripCost)}</div></div>
           <div class="summary-item"><div class="label">Spare Parts</div><div class="value">${ksh(r.parts)}</div></div>
           <div class="summary-item"><div class="label">Miscellaneous</div><div class="value">${ksh(r.misc)}</div></div>
-          <div class="summary-item"><div class="label">Staff Payroll</div><div class="value">${ksh(r.payroll)}</div></div>
+          <div class="summary-item"><div class="label">Authorised Payroll</div><div class="value">${ksh(r.payroll)}</div></div>
+          <div class="summary-item"><div class="label">Total Banked</div><div class="value">${ksh(r.banked||0)}</div></div>
           <div class="summary-item ${net >= 0 ? 'highlight' : 'highlight-neg'}">
             <div class="label">NET PROFIT / (LOSS)</div>
             <div class="value">${ksh(net)}</div>
@@ -533,11 +557,16 @@ async function loadReport() {
         ${r.trips.length === 0 ? '<p class="muted">No trips this month.</p>' : `
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Date</th><th>Truck</th><th>Route</th><th>Cargo</th><th class="money">Income</th><th class="money">Profit</th></tr></thead>
+            <thead><tr><th>Date</th><th>Truck</th><th>Route</th><th>Cargo</th><th>km</th><th class="money">Income</th><th class="money">Fuel</th><th class="money">Border/Tolls</th><th class="money">Broker</th><th class="money">Other</th><th class="money">Profit</th></tr></thead>
             <tbody>
               ${r.trips.map(t => `<tr>
                 <td>${t.date}</td><td>${esc(t.plate)}</td><td>${esc(t.route)}</td><td>${esc(t.cargo)}</td>
+                <td>${t.mileage ? t.mileage + ' km' : '—'}</td>
                 <td class="money">${fmt(t.income)}</td>
+                <td class="money">${fmt(t.fuel||0)}</td>
+                <td class="money">${fmt(t.borderAndTolls||0)}</td>
+                <td class="money">${fmt(t.broker||0)}</td>
+                <td class="money" title="${esc(t.otherDesc||'')}">${fmt(t.other)}${t.otherDesc ? '<br><small class="muted">'+esc(t.otherDesc)+'</small>' : ''}</td>
                 <td class="money ${t.profit >= 0 ? 'pos' : 'neg'}">${fmt(t.profit)}</td>
               </tr>`).join('')}
             </tbody>
@@ -612,8 +641,8 @@ function exportReportCsv() {
   csv += `Trip income,${r.income}\nTrip expenses,${r.tripCost}\nSpare parts,${r.parts}\n`;
   csv += `Miscellaneous,${r.misc}\nStaff payroll,${r.payroll}\nNet profit/(loss),${r.net}\n\n`;
 
-  csv += 'TRIPS\nDate,Truck,Route,Cargo,Income,Cost,Profit\n';
-  r.trips.forEach(t => { csv += `${t.date},${q(t.plate)},${q(t.route)},${q(t.cargo)},${t.income},${t.cost},${t.profit}\n`; });
+  csv += 'TRIPS\nDate,Truck,Route,Cargo,Mileage(km),Income,Fuel,Border/Tolls,Broker,Other,Other Description,Profit\n';
+  r.trips.forEach(t => { csv += `${t.date},${q(t.plate)},${q(t.route)},${q(t.cargo)},${t.mileage||0},${t.income},${t.fuel||0},${t.borderAndTolls||0},${t.broker||0},${t.other},${q(t.otherDesc||'')},${t.profit}\n`; });
 
   csv += '\nSPARE PARTS\nDate,Truck,Part,Qty,Cost\n';
   r.parts.forEach(p => { csv += `${p.date},${q(p.plate)},${q(p.name)},${p.qty},${p.cost}\n`; });
@@ -633,6 +662,77 @@ function exportReportCsv() {
 }
 
 function q(s) { return '"' + (s || '').replace(/"/g, '""') + '"'; }
+
+// ========================= BANK DEPOSITS =========================
+async function loadBank() {
+  try {
+    const deps = await api('/bank');
+    const tbody = document.getElementById('bank-tbody');
+    if (!deps.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No bank deposits recorded yet.</td></tr>';
+      document.getElementById('bank-total').textContent = '';
+      return;
+    }
+    tbody.innerHTML = deps.map(d => `<tr>
+      <td>${d.date}</td>
+      <td>${esc(d.bank)}</td>
+      <td>${esc(d.reference) || '<span class="muted">—</span>'}</td>
+      <td class="money">${fmt(d.amount)}</td>
+      <td><button class="btn-icon" title="Delete" onclick="confirmDelete('this deposit?', deleteBank, ${d.id})">🗑️</button></td>
+    </tr>`).join('');
+    const total = deps.reduce((s, d) => s + d.amount, 0);
+    document.getElementById('bank-total').textContent = 'Total Banked: ' + ksh(total);
+  } catch (e) {
+    showToast('Could not load bank deposits: ' + e.message, 'error');
+  }
+}
+
+async function submitBank(e) {
+  e.preventDefault();
+  const body = {
+    date:      document.getElementById('b-date').value,
+    bank:      document.getElementById('b-bank').value.trim(),
+    reference: document.getElementById('b-ref').value.trim(),
+    amount:    parseFloat(document.getElementById('b-amount').value) || 0
+  };
+  try {
+    await api('/bank', { method: 'POST', body: JSON.stringify(body) });
+    closeModal('bank-modal');
+    document.getElementById('bank-form').reset();
+    await loadBank();
+    showToast('Deposit recorded', 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function deleteBank(id) {
+  try {
+    await api('/bank/' + id, { method: 'DELETE' });
+    await loadBank();
+    showToast('Deposit deleted', 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ========================= PAYROLL RUNS =========================
+async function submitPayrollRun(e) {
+  e.preventDefault();
+  const body = {
+    month:        document.getElementById('pr-month').value,
+    authorisedBy: document.getElementById('pr-auth').value.trim()
+  };
+  try {
+    await api('/payroll/run', { method: 'POST', body: JSON.stringify(body) });
+    closeModal('payroll-modal');
+    document.getElementById('payroll-form').reset();
+    await loadDashboard();
+    showToast('Payroll authorised and deducted', 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
 
 // ========================= MODAL HELPERS =========================
 function openModal(id) {

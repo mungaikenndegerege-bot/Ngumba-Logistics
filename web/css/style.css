@@ -616,3 +616,35 @@ td.neg { color: var(--red);   font-weight: 700; }
   .stat-value { font-size: 1.25rem; }
   .tab-header h2 { font-size: 1.2rem; }
 }
+
+/* =====================================================================
+   Additions — bank/payroll/trip extras
+   ===================================================================== */
+
+:root {
+  --blue:      #2980b9;
+  --blue-glow: rgba(41,128,185,.35);
+}
+
+.stat-card.blue::before { background: linear-gradient(90deg, var(--blue), transparent); box-shadow: 0 0 10px var(--blue-glow); }
+
+/* Pending payroll notice bar */
+.payroll-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(255,179,71,.12);
+  border: 1px solid rgba(255,179,71,.45);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  font-size: .9rem;
+  color: var(--amber);
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  padding: 6px 14px;
+  font-size: .82rem;
+}

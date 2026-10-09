@@ -20,6 +20,7 @@
         <button class="nav-btn" data-tab="parts">Spare Parts</button>
         <button class="nav-btn" data-tab="staff">Staff</button>
         <button class="nav-btn" data-tab="misc">Misc Expenses</button>
+        <button class="nav-btn" data-tab="bank">Bank Deposits</button>
         <button class="nav-btn" data-tab="report">Monthly Report</button>
       </nav>
       <button id="theme-toggle" class="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle light / dark mode">
@@ -35,11 +36,16 @@
       <h2>Dashboard</h2>
       <div id="dash-stats" class="stat-grid">
         <div class="stat-card"><div class="stat-label">Trucks</div><div class="stat-value" id="d-trucks">—</div></div>
-        <div class="stat-card"><div class="stat-label">Staff</div><div class="stat-value" id="d-staff">—</div></div>
         <div class="stat-card"><div class="stat-label">Total Trips</div><div class="stat-value" id="d-trips">—</div></div>
         <div class="stat-card green"><div class="stat-label">This Month Income</div><div class="stat-value" id="d-income">—</div></div>
         <div class="stat-card red"><div class="stat-label">This Month Costs</div><div class="stat-value" id="d-costs">—</div></div>
+        <div class="stat-card blue"><div class="stat-label">This Month Banked</div><div class="stat-value" id="d-banked">—</div></div>
         <div class="stat-card" id="d-net-card"><div class="stat-label">This Month Net</div><div class="stat-value" id="d-net">—</div></div>
+      </div>
+
+      <div id="payroll-notice" class="payroll-notice" style="display:none">
+        <span id="payroll-notice-text"></span>
+        <button class="btn-primary btn-sm" onclick="openModal('payroll-modal')">🔐 Authorise Payroll</button>
       </div>
 
       <div id="dash-details" class="dash-row">
@@ -50,7 +56,8 @@
             <tr><td>Trip Expenses</td><td class="money" id="d-b-tripcost">—</td></tr>
             <tr><td>Spare Parts</td><td class="money" id="d-b-parts">—</td></tr>
             <tr><td>Miscellaneous</td><td class="money" id="d-b-misc">—</td></tr>
-            <tr><td>Payroll</td><td class="money" id="d-b-payroll">—</td></tr>
+            <tr><td>Authorised Payroll</td><td class="money" id="d-b-payroll">—</td></tr>
+            <tr><td style="color:var(--amber);font-size:.82rem">Pending Payroll (not deducted)</td><td class="money" id="d-b-pending" style="color:var(--amber)">—</td></tr>
             <tr class="total-row"><td>NET PROFIT / (LOSS)</td><td class="money" id="d-b-net">—</td></tr>
           </table>
         </div>
@@ -88,7 +95,7 @@
         <table id="trips-table">
           <thead><tr>
             <th>ID</th><th>Date</th><th>Truck</th><th>Route</th><th>Cargo</th>
-            <th>Income</th><th>Costs</th><th>Profit</th><th>Actions</th>
+            <th>km</th><th></th>Income</th><th>Fuel</th><th>Border/Tolls</th><th>Broker</th><th>Other</th><th>Profit</th><th>Actions</th>
           </tr></thead>
           <tbody id="trips-tbody"></tbody>
         </table>
@@ -142,6 +149,23 @@
           <tbody id="misc-tbody"></tbody>
         </table>
       </div>
+    </section>
+
+    <!-- ===== BANK DEPOSITS ===== -->
+    <section id="tab-bank" class="tab">
+      <div class="tab-header">
+        <h2>Bank Deposits</h2>
+        <button class="btn-primary" onclick="openModal('bank-modal')">+ Record Deposit</button>
+      </div>
+      <div class="table-wrap">
+        <table id="bank-table">
+          <thead><tr>
+            <th>Date</th><th>Bank</th><th>Reference / Slip No.</th><th>Amount (KSh)</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="bank-tbody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer" id="bank-total"></div>
     </section>
 
     <!-- ===== MONTHLY REPORT ===== -->
@@ -207,10 +231,13 @@
         </label>
         <label>Cargo <input type="text" id="tr-cargo" /></label>
         <label>Date <input type="date" id="tr-date" required /></label>
+        <label>Mileage (km) <input type="number" id="tr-mileage" min="0" step="1" value="0" placeholder="0" /></label>
         <label>Income (KSh) <input type="number" id="tr-income" min="0" step="1" required /></label>
         <label>Fuel Cost (KSh) <input type="number" id="tr-fuel" min="0" step="1" value="0" /></label>
         <label>Border / Tolls / Weighbridge (KSh) <input type="number" id="tr-border" min="0" step="1" value="0" /></label>
-        <label>Other Expenses (KSh) <input type="number" id="tr-other" min="0" step="1" value="0" /></label>
+        <label>Broker Commission (KSh) <input type="number" id="tr-broker" min="0" step="1" value="0" /></label>
+        <label>Other Road Costs (KSh) <input type="number" id="tr-other" min="0" step="1" value="0" /></label>
+        <label>Describe Other Costs <input type="text" id="tr-otherdesc" placeholder="e.g. Breakdown repair, tyre change..." /></label>
         <div class="modal-actions">
           <button type="submit" class="btn-primary">Save</button>
           <button type="button" class="btn-secondary" onclick="closeModal('trip-modal')">Cancel</button>
@@ -270,6 +297,39 @@
         <div class="modal-actions">
           <button type="submit" class="btn-primary">Save</button>
           <button type="button" class="btn-secondary" onclick="closeModal('misc-modal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bank Deposit -->
+  <div id="bank-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bank-modal-title">
+    <div class="modal">
+      <h3 id="bank-modal-title">Record Bank Deposit</h3>
+      <form id="bank-form" onsubmit="submitBank(event)">
+        <label>Date <input type="date" id="b-date" required /></label>
+        <label>Bank Name <input type="text" id="b-bank" required placeholder="e.g. Equity, KCB, Co-op" /></label>
+        <label>Reference / Slip No. <input type="text" id="b-ref" placeholder="Deposit slip number" /></label>
+        <label>Amount (KSh) <input type="number" id="b-amount" min="0" step="1" required /></label>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary">Save</button>
+          <button type="button" class="btn-secondary" onclick="closeModal('bank-modal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Authorise Payroll -->
+  <div id="payroll-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="payroll-modal-title">
+    <div class="modal modal-sm">
+      <h3 id="payroll-modal-title">Authorise Payroll</h3>
+      <p id="payroll-modal-desc" style="margin-bottom:16px;color:var(--text-secondary);font-size:.9rem"></p>
+      <form id="payroll-form" onsubmit="submitPayrollRun(event)">
+        <label>Authorised By <input type="text" id="pr-auth" required placeholder="Your name" /></label>
+        <input type="hidden" id="pr-month" />
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary">Confirm &amp; Deduct</button>
+          <button type="button" class="btn-secondary" onclick="closeModal('payroll-modal')">Cancel</button>
         </div>
       </form>
     </div>

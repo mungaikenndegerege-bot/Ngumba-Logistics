@@ -30,13 +30,15 @@ public class DataStore {
     }
 
     public static class Trip implements Serializable {
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 2L;  // bumped — new fields
         public int id;
         public String plate, route, cargo;
         public LocalDate date;
-        public double income, fuel, borderAndTolls, other;
+        public double income, fuel, borderAndTolls, broker, other;
+        public int mileage;             // km driven
+        public String otherDesc;        // description of "other" costs on the road
 
-        public double cost()   { return fuel + borderAndTolls + other; }
+        public double cost()   { return fuel + borderAndTolls + broker + other; }
         public double profit() { return income - cost(); }
     }
 
@@ -66,17 +68,41 @@ public class DataStore {
         public double amount;
     }
 
+    /** A cash deposit made to a bank account. */
+    public static class BankDeposit implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public int id;
+        public LocalDate date;
+        public String bank;        // e.g. "Equity", "KCB"
+        public String reference;   // deposit slip / receipt number
+        public double amount;
+    }
+
+    /** Record that payroll was authorised and paid for a given month. */
+    public static class PayrollRun implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public int id;
+        public LocalDate date;       // date authorised
+        public String month;         // e.g. "2026-10"
+        public double totalPaid;     // sum of all salaries at time of authorisation
+        public String authorisedBy;
+    }
+
     public static class AppData implements Serializable {
-        private static final long serialVersionUID = 3L;  // bumped — Staff fields added
+        private static final long serialVersionUID = 4L;  // bumped — new models added
         public List<Truck> trucks  = new ArrayList<Truck>();
         public List<Trip>  trips   = new ArrayList<Trip>();
         public List<Part>  parts   = new ArrayList<Part>();
         public List<Staff> staff   = new ArrayList<Staff>();
         public List<Misc>  misc    = new ArrayList<Misc>();
-        public int nextTripId  = 1;
-        public int nextPartId  = 1;
-        public int nextStaffId = 1;
-        public int nextMiscId  = 1;
+        public List<BankDeposit>  bankDeposits  = new ArrayList<BankDeposit>();
+        public List<PayrollRun>   payrollRuns   = new ArrayList<PayrollRun>();
+        public int nextTripId      = 1;
+        public int nextPartId      = 1;
+        public int nextStaffId     = 1;
+        public int nextMiscId      = 1;
+        public int nextDepositId   = 1;
+        public int nextPayrollRunId = 1;
     }
 
     // ========================= SINGLETON STATE =========================
@@ -156,11 +182,20 @@ public class DataStore {
     private static void backfillIds() {
         for (Part p : data.parts)  if (p.id == 0) p.id = data.nextPartId++;
         for (Staff s : data.staff) {
-            if (s.id == 0)           s.id           = data.nextStaffId++;
-            if (s.idNumber == null)  s.idNumber     = "";
+            if (s.id == 0)               s.id           = data.nextStaffId++;
+            if (s.idNumber == null)      s.idNumber     = "";
             if (s.licenseNumber == null) s.licenseNumber = "";
         }
-        for (Misc m : data.misc)   if (m.id == 0) m.id = data.nextMiscId++;
+        for (Misc m : data.misc) if (m.id == 0) m.id = data.nextMiscId++;
+        // New collections — null-safe init for older .dat files
+        if (data.bankDeposits  == null) data.bankDeposits  = new java.util.ArrayList<>();
+        if (data.payrollRuns   == null) data.payrollRuns   = new java.util.ArrayList<>();
+        for (BankDeposit d : data.bankDeposits) if (d.id == 0) d.id = data.nextDepositId++;
+        for (PayrollRun  r : data.payrollRuns)  if (r.id == 0) r.id = data.nextPayrollRunId++;
+        // Trip migration — fill nulls for new fields
+        for (Trip t : data.trips) {
+            if (t.otherDesc == null) t.otherDesc = "";
+        }
     }
 
     // ========================= LOOKUP HELPERS =========================
