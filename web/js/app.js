@@ -663,6 +663,153 @@ function exportReportCsv() {
 
 function q(s) { return '"' + (s || '').replace(/"/g, '""') + '"'; }
 
+// ========================= PDF EXPORT =========================
+function exportReportPdf() {
+  const r = window._lastReport;
+  if (!r) { showToast('Generate a report first', 'error'); return; }
+  const label = window._lastReportLabel || 'Report';
+
+  const kshP = v => 'KSh ' + Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtP = v => Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const escP = s => s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+
+  const net = r.net;
+  const netClass = net >= 0 ? 'pos' : 'neg';
+
+  // Build a self-contained HTML page styled for printing / PDF
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ngumba Logistics — ${escP(label)}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #1a1a1a; padding: 20px; }
+  h1 { font-size: 18px; margin-bottom: 2px; }
+  .sub { font-size: 11px; color: #555; margin-bottom: 18px; }
+  h2 { font-size: 13px; margin: 18px 0 6px; border-bottom: 2px solid #0a7d3b; padding-bottom: 4px; color: #0a7d3b; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+  th { background: #f0f0f0; padding: 5px 7px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; border: 1px solid #ccc; }
+  td { padding: 5px 7px; border: 1px solid #ddd; vertical-align: top; }
+  .r { text-align: right; }
+  .pos { color: #0a7d3b; font-weight: 700; }
+  .neg { color: #c0392b; font-weight: 700; }
+  .total td { font-weight: 700; background: #fafafa; border-top: 2px solid #aaa; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px; }
+  .summary-item { border: 1px solid #ddd; border-radius: 4px; padding: 8px 10px; }
+  .summary-item .lbl { font-size: 9px; text-transform: uppercase; color: #666; margin-bottom: 3px; }
+  .summary-item .val { font-size: 13px; font-weight: 700; }
+  .highlight { background: #e8f5ee; border-color: #0a7d3b; }
+  .highlight .val { color: #0a7d3b; }
+  .highlight-neg { background: #fdecea; border-color: #c0392b; }
+  .highlight-neg .val { color: #c0392b; }
+  .muted { color: #999; font-style: italic; }
+  small { font-size: 9px; color: #777; }
+  @media print {
+    body { padding: 10px; }
+    @page { margin: 15mm; size: A4; }
+  }
+</style>
+</head>
+<body>
+<h1>NGUMBA LOGISTICS</h1>
+<div class="sub">Monthly Report — ${escP(label)} &nbsp;|&nbsp; Generated ${new Date().toLocaleDateString('en-KE', {day:'2-digit',month:'long',year:'numeric'})}</div>
+
+<h2>Summary</h2>
+<div class="summary-grid">
+  <div class="summary-item"><div class="lbl">Trip Income</div><div class="val">${kshP(r.income)}</div></div>
+  <div class="summary-item"><div class="lbl">Trip Expenses</div><div class="val">${kshP(r.tripCost)}</div></div>
+  <div class="summary-item"><div class="lbl">Spare Parts</div><div class="val">${kshP(r.parts)}</div></div>
+  <div class="summary-item"><div class="lbl">Miscellaneous</div><div class="val">${kshP(r.misc)}</div></div>
+  <div class="summary-item"><div class="lbl">Authorised Payroll</div><div class="val">${kshP(r.payroll)}</div></div>
+  <div class="summary-item"><div class="lbl">Total Banked</div><div class="val">${kshP(r.banked || 0)}</div></div>
+  <div class="summary-item ${net >= 0 ? 'highlight' : 'highlight-neg'}"><div class="lbl">Net Profit / (Loss)</div><div class="val ${netClass}">${kshP(net)}</div></div>
+</div>
+
+<h2>Per Truck</h2>
+${r.trucks.length === 0 ? '<p class="muted">No trucks.</p>' : `
+<table>
+  <thead><tr><th>Truck</th><th>Trips</th><th class="r">Income</th><th class="r">Costs</th><th class="r">Profit</th></tr></thead>
+  <tbody>
+    ${r.trucks.map(t => `<tr>
+      <td>${escP(t.plate)}</td><td class="r">${t.trips}</td>
+      <td class="r">${fmtP(t.income)}</td><td class="r">${fmtP(t.cost)}</td>
+      <td class="r ${t.profit >= 0 ? 'pos' : 'neg'}">${fmtP(t.profit)}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>`}
+
+<h2>Trips</h2>
+${r.trips.length === 0 ? '<p class="muted">No trips this month.</p>' : `
+<table>
+  <thead><tr><th>Date</th><th>Truck</th><th>Route</th><th>Cargo</th><th class="r">km</th><th class="r">Income</th><th class="r">Fuel</th><th class="r">Border/Tolls</th><th class="r">Broker</th><th class="r">Other</th><th class="r">Profit</th></tr></thead>
+  <tbody>
+    ${r.trips.map(t => `<tr>
+      <td>${t.date}</td><td>${escP(t.plate)}</td><td>${escP(t.route)}</td><td>${escP(t.cargo)}</td>
+      <td class="r">${t.mileage ? t.mileage : '—'}</td>
+      <td class="r">${fmtP(t.income)}</td>
+      <td class="r">${fmtP(t.fuel || 0)}</td>
+      <td class="r">${fmtP(t.borderAndTolls || 0)}</td>
+      <td class="r">${fmtP(t.broker || 0)}</td>
+      <td class="r">${fmtP(t.other)}${t.otherDesc ? '<br><small>' + escP(t.otherDesc) + '</small>' : ''}</td>
+      <td class="r ${t.profit >= 0 ? 'pos' : 'neg'}">${fmtP(t.profit)}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>`}
+
+<h2>Spare Parts</h2>
+${r.parts.length === 0 ? '<p class="muted">None.</p>' : `
+<table>
+  <thead><tr><th>Date</th><th>Truck</th><th>Part</th><th class="r">Qty</th><th class="r">Cost</th></tr></thead>
+  <tbody>
+    ${r.parts.map(p => `<tr>
+      <td>${p.date}</td><td>${escP(p.plate)}</td><td>${escP(p.name)}</td>
+      <td class="r">${p.qty}</td><td class="r">${fmtP(p.cost)}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>`}
+
+<h2>Miscellaneous Expenses</h2>
+${r.misc.length === 0 ? '<p class="muted">None.</p>' : `
+<table>
+  <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Truck</th><th class="r">Amount</th></tr></thead>
+  <tbody>
+    ${r.misc.map(x => `<tr>
+      <td>${x.date}</td><td>${escP(x.category)}</td><td>${escP(x.description)}</td>
+      <td>${x.plate || 'General'}</td><td class="r">${fmtP(x.amount)}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>`}
+
+<h2>Payroll</h2>
+${r.staff.length === 0 ? '<p class="muted">No staff.</p>' : `
+<table>
+  <thead><tr><th>Name</th><th>Role</th><th>ID No.</th><th>Licence No.</th><th class="r">Monthly Salary</th></tr></thead>
+  <tbody>
+    ${r.staff.map(s => `<tr>
+      <td>${escP(s.name)}</td><td>${escP(s.role)}</td>
+      <td>${escP(s.idNumber) || '—'}</td><td>${escP(s.licenseNumber) || '—'}</td>
+      <td class="r">${fmtP(s.monthlySalary)}</td>
+    </tr>`).join('')}
+    <tr class="total"><td colspan="4">Total Payroll</td><td class="r">${kshP(r.payroll)}</td></tr>
+  </tbody>
+</table>`}
+
+<script>window.onload = function() { window.print(); }</script>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, '_blank');
+  if (!win) {
+    showToast('Allow pop-ups to export PDF', 'error');
+  } else {
+    showToast('Print dialog opening — choose "Save as PDF"', 'success');
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 // ========================= BANK DEPOSITS =========================
 async function loadBank() {
   try {
